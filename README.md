@@ -19,9 +19,9 @@
 git clone https://github.com/yogik23/skw-inferno && cd skw-inferno
 ```
 
-**2. Install Nodejs NPM dan  Module**
+**2. Install Module**
 ```
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash && source ~/.bashrc && nvm install v22.3.0 && nvm use v22.3.0 && nvm alias default v22.3.0 && npm install
+npm install
 ```
 
 **3. Submit email dan password di file** `config.json`
