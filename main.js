@@ -5,6 +5,9 @@ const figlet = require('figlet');
 const displayWelcomeMessage = require('./welcomeMessage');
 
 const config = JSON.parse(fs.readFileSync('config.json', 'utf8'));
+const models = JSON.parse(fs.readFileSync('models.json', 'utf8'));
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const HEADERS = (token) => ({
     'Accept': 'application/json, text/plain, */*',
@@ -55,14 +58,14 @@ const getAllQuests = async (token) => {
     const url = 'https://api.inferium.io/inf-v1/v1/challenge/all';
     try {
         const response = await axios.get(url, { headers: HEADERS(token) });
-        console.log(chalk.blue.bold('All Quests:'));
+        console.log(chalk.blue.bold('Semua Quest:'));
         response.data.forEach(quest => {
             const target = quest.extData && quest.extData.target ? quest.extData.target : 'N/A';
             console.log(chalk.blue(`- ID ${quest.id} ${quest.description}`));
         });
         return response.data;
     } catch (error) {
-        console.error(chalk.red('Get Quests Error:', error.response ? error.response.data : error.message));
+        console.error(chalk.red('Kesalahan Mengambil Quest:', error.response ? error.response.data : error.message));
     }
 };
 
@@ -85,17 +88,33 @@ const claimQuest = async (activityId, account, token) => {
     } catch (error) {
         if (error.response) {
             if (error.response.data.errorCode === 'INVALID_ARGUMENT') {
-                return 'already_claimed';
+                return 'sudah_diklaim';
             } else {
-                console.error(chalk.red('Claim Quest Error:', error.response.data));
             }
         } else {
-            console.error(chalk.red('Claim Quest Error:', error.message));
+            console.error(chalk.red('Kesalahan Mengklaim Quest:', error.message));
         }
     }
 };
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function runModel(model, inputText, token, id) {
+    const url = 'https://api.inferium.io/inf-v1/v1/models/query';
+    const payload = { model, inputText, id };
+
+    try {
+        const response = await axios.post(url, payload, { headers: HEADERS(token) });
+        console.log(chalk.green(`Model ${model} berhasil dijalankan dengan input "${inputText}".`));
+        return response.data;
+    } catch (error) {
+        const errorMessage = error.response ? 
+            (error.response.data ? JSON.stringify(error.response.data, null, 2) : error.message) : 
+            error.message;
+        
+        console.error(chalk.red(`Error saat menjalankan model ${model}:`, errorMessage));
+    }
+}
+
 
 const claimAllQuests = async (quests, account, token) => {
     for (const quest of quests) {
@@ -105,24 +124,21 @@ const claimAllQuests = async (quests, account, token) => {
         const activityId = quest.id;
         const description = quest.description;
 
-        
-        const questResult = await doQuest(socialId, action, type, token);
-        await delay(2000);
-
-        if (questResult === true) {
-            const claimResponse = await claimQuest(activityId, account, token);
-            if (claimResponse === 'already_claimed') {
-                console.log(chalk.green('- Quest sudah diclaim.'));
-            } else if (claimResponse && claimResponse.status === 'CLAIMED') {
-                console.log(chalk.green(`- Berhasil Mengerjakan quest ${description}`));
-            } else {
-                console.log(chalk.red(`- Gagal mengerjakan quest ${description}... Kerjakan Manual atau Belum Connect Sosmed`));
-            }
+        if (quest.isAchieved) {
+            console.log(chalk.green(`Quest ID ${activityId} sudah diklaim.`));
         } else {
-            console.log(chalk.red(`- Gagal mengerjakan quest ${description}... Kerjakan Manual atau Belum Connect Sosmed`));
+            const result = await doQuest(socialId, action, type, token);
+            await delay(2000);
+
+            const claimResult = await claimQuest(activityId, account, token);
+            if (claimResult && claimResult !== 'sudah_diklaim') {
+                console.log(chalk.green(`Quest ID ${activityId} berhasil diklaim.`));
+            } else {
+                console.log(chalk.red(`Quest ID ${activityId} Lakukan Manual`));
+            }
         }
 
-        await delay(3000);
+        await delay(2000);
     }
 };
 
@@ -138,17 +154,29 @@ async function startBot() {
             if (activities && activities.length > 0) {
                 const activityId = activities[0].id;
                 await claimReward(activityId, email, token);
-            }
 
             const quests = await getAllQuests(token);
+            console.log(chalk.grey('Mengerjakan quest RUN 10 MODELS .....'));
 
-            console.log(chalk.grey('Mengerjakan quest.....'));
+            for (const [model, inputTextArray] of Object.entries(models)) {
+                const inputIndex = Math.floor(Math.random() * inputTextArray.length);
+                const inputTextForModel = inputTextArray[inputIndex];
+
+                if (inputTextForModel) {
+                    await runModel(model, inputTextForModel, token, Date.now());
+                    await delay(2000);
+                } else {
+                    console.error(chalk.yellow(`InputText untuk model ${model} tidak ditemukan.`))
+                }
+            }
+
+            console.log(chalk.grey('Claim Quest.....'));
             await claimAllQuests(quests, email, token);
             console.log(chalk.grey(''));
+            }
         }
-    }
-};
-
+    } 
+}  
 
 
 async function main() {
@@ -171,7 +199,7 @@ async function main() {
       } else {
         process.stdout.clearLine();
         process.stdout.cursorTo(0);
-        process.stdout.write(chalk.magenta(`Cooldown Claim Berikutnya: ${countdown} detik. Bot By skwairdrop`));
+        process.stdout.write(chalk.magenta(`Cooldown Claim Berikutnya: ${countdown} detik. Bot By SKW AIRDROP HUNTER`));
         countdown--;
       }
     }, 1000);
