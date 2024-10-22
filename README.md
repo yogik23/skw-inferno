@@ -7,6 +7,7 @@
 - Daily Check in
 - Daily Quest
 - Menyelesaikan Quest
+- Notif ke Telegram
 
 ### [Link Testnet](https://www.inferium.io/#/referral?inviteCode=5IIBvhac)
 
@@ -46,7 +47,16 @@ format config.json
   }
 ]
 ```
-**4. Jalankan bot** 
+**4. Edit file `.env` untuk notif ke telegram**
+```
+nano .env
+```
+format `.emv`
+```
+TELEGRAM_BOT_TOKEN=ApiBot
+TELEGRAM_CHAT_ID=userIDtelegram
+```
+**5. Jalankan bot** 
 ```
 node main.js
 ```
